@@ -1,0 +1,845 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>이상하고 아름다운 어중간</title>
+<style>
+  @font-face { font-family: 'Min Sans'; src: url('fonts/MinSans-ExtraBold.otf') format('opentype'); font-weight: 800; }
+  @font-face { font-family: 'Min Sans'; src: url('fonts/MinSans-Black.otf') format('opentype'); font-weight: 900; }
+
+  :root {
+    --blue: #0019FF;
+    --red: #FF0000;
+    --yellow: #FFF100;
+    --grad: linear-gradient(180deg, #0019FF 0%, rgba(145,155,255,0.9) 41.35%, rgba(233,235,255,0.8) 78.85%, rgba(255,255,255,0) 100%);
+
+    /* PC: 피그마 1px(1440×900 프레임 기준)을 화면 크기에 맞춘 단위 */
+    --u: min(calc(100vw / 1440), calc(100vh / 900));
+    --u: min(calc(100vw / 1440), calc(100dvh / 900));
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #FFFFFF; }
+  body { font-family: 'Min Sans', sans-serif; color: #000; -webkit-tap-highlight-color: transparent; }
+  img { display: block; }
+
+  /* ── 화면 공통 ── */
+  .screen { position: fixed; inset: 0; display: none; overflow: hidden; background: #FFFFFF; }
+  .screen.active { display: block; animation: fadeIn .4s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+  /* 상·하단 그라디언트: 화면 전체 폭으로 깔림 */
+  .grad-top, .grad-bottom { position: absolute; left: 0; right: 0; background: var(--grad); pointer-events: none; }
+  .grad-top { top: 0; height: 35.1%; }              /* 316 / 900 */
+  .grad-bottom { bottom: 0; height: 14.7%; transform: rotate(180deg); }  /* 132 / 900 */
+
+  /* 콘텐츠 프레임: PC에서는 1440×900 비율로 가운데 정렬, 요소는 피그마 좌표대로 배치 */
+  .frame {
+    position: absolute; left: 50%; top: 50%;
+    width: calc(1440 * var(--u)); height: calc(900 * var(--u));
+    transform: translate(-50%, -50%);
+  }
+  .frame > *, .btns > * { position: absolute; }
+  .btns { display: contents; }
+
+  /* 버튼: 빨간 사각형 + 노란 타원 + 파란 레터링 */
+  .btn {
+    left: calc(var(--x) * var(--u)); top: calc(var(--y) * var(--u));
+    width: calc(272 * var(--u)); height: calc(106 * var(--u));
+    background: var(--red);
+    border: none; padding: 0;
+    cursor: pointer;
+    transition: transform .15s ease;
+  }
+  .btn::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: var(--yellow);
+    border-radius: 50%;
+    transition: filter .15s ease;
+  }
+  .btn img {
+    position: absolute; left: 50%; top: 50%;
+    height: 25%; max-width: 82%;
+    object-fit: contain;
+    transform: translate(-50%, -50%);
+  }
+  .btn-text {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Min Sans', sans-serif; font-weight: 800;
+    font-size: calc(26 * var(--u)); color: var(--blue); white-space: nowrap;
+  }
+  .btn:hover::before { filter: brightness(1.05); }
+  .btn:active { transform: scale(0.96); }
+
+  /* 오른쪽 상단 미니 타이틀 (누르면 처음으로) */
+  .mini-title {
+    left: calc(1119 * var(--u)); top: calc(46 * var(--u));
+    width: calc(229 * var(--u)); height: calc(69 * var(--u));
+    object-fit: contain; cursor: pointer;
+  }
+
+  /* ── 1. main ── */
+  #main .title {
+    left: calc(31 * var(--u)); top: calc(44 * var(--u));
+    width: calc(1378 * var(--u)); height: calc(417 * var(--u));
+    object-fit: contain;
+  }
+  #main .guide {
+    left: calc(69 * var(--u)); top: calc(384 * var(--u));
+    font-weight: 800; font-size: calc(16 * var(--u)); line-height: calc(36 * var(--u));
+    white-space: nowrap;
+  }
+  #main .footer {
+    left: calc(64 * var(--u)); right: calc(63 * var(--u)); top: calc(831 * var(--u));
+    display: grid; grid-template-columns: 1fr auto 1fr;  /* 가운데 문구를 화면 정중앙에 */
+    font-weight: 900; font-size: calc(20 * var(--u)); line-height: calc(36 * var(--u));
+    color: #FFFFFF; white-space: nowrap;
+  }
+  #main .footer span:last-child { justify-self: end; }
+
+  /* ── 2. loading ── */
+  #loading .lettering {
+    left: 50%; top: 50%;
+    width: calc(1022.55 * var(--u));
+    transform: translate(-50%, -50%);
+  }
+  /* 위·아래·왼쪽·오른쪽으로 같은 거리만큼 둥글게 떠다님 */
+  #loading .lettering img {
+    --float: clamp(4px, calc(10 * var(--u)), 12px);
+    width: 100%; height: auto;
+    animation: float 2s linear infinite;
+  }
+  @keyframes float {
+    0%, 100% { transform: translate(0, calc(var(--float) * -1)); }
+    12.5% { transform: translate(calc(var(--float) * 0.707), calc(var(--float) * -0.707)); }
+    25%   { transform: translate(var(--float), 0); }
+    37.5% { transform: translate(calc(var(--float) * 0.707), calc(var(--float) * 0.707)); }
+    50%   { transform: translate(0, var(--float)); }
+    62.5% { transform: translate(calc(var(--float) * -0.707), calc(var(--float) * 0.707)); }
+    75%   { transform: translate(calc(var(--float) * -1), 0); }
+    87.5% { transform: translate(calc(var(--float) * -0.707), calc(var(--float) * -0.707)); }
+  }
+
+  /* ── 3. result ── */
+  #result .glow {
+    left: calc(259 * var(--u)); top: calc(85 * var(--u));
+    width: calc(922 * var(--u)); height: calc(749 * var(--u));
+    background: #FFFFFF; border-radius: 50%;
+    filter: blur(20px);
+  }
+  #result .stage {
+    left: calc(445.5 * var(--u)); top: calc(99 * var(--u));
+    width: calc(549 * var(--u)); height: calc(702 * var(--u));
+  }
+  #collage { width: 100%; height: 100%; display: block; touch-action: none; }
+
+  /* ── 4. gallery ── */
+  #gallery {
+    left: calc(71 * var(--u)); top: calc(153 * var(--u));
+    display: grid;
+    grid-template-columns: repeat(4, calc(225.77 * var(--u)));
+    grid-auto-rows: calc(300.59 * var(--u));
+    column-gap: calc(9.65 * var(--u)); row-gap: calc(13.82 * var(--u));
+  }
+  #gallery .card { background: #FFFFFF; border: 1px solid var(--blue); overflow: hidden; }
+  #gallery .card img { width: 100%; height: 100%; object-fit: cover; }
+
+  #fileInput { display: none; }
+
+  /* ───────── 모바일 / 세로 태블릿: 화면에 꽉 차는 세로 레이아웃 ───────── */
+  @media (max-width: 768px), (orientation: portrait) and (max-width: 1024px) {
+    .frame {
+      left: 0; top: 0; transform: none;
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column; align-items: center;
+      gap: 16px;
+      padding: max(20px, env(safe-area-inset-top)) 16px max(16px, env(safe-area-inset-bottom));
+    }
+    .frame > *, .btns > * { position: static; }
+
+    .btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; width: 100%; max-width: 520px; }
+    .btn { position: relative; left: auto; top: auto; width: 100%; height: clamp(60px, 16vw, 84px); }
+    .btn-text { font-size: clamp(15px, 4.4vw, 22px); }
+
+    .mini-title { position: relative; left: auto; top: auto; align-self: flex-end; width: 38vw; max-width: 200px; height: auto; flex-shrink: 0; }
+
+    /* main */
+    #main .title { width: 100%; height: auto; margin-top: 6vh; }
+    #main .guide { font-size: 15px; line-height: 1.9; text-align: center; white-space: normal; }
+    #main .btns { margin-top: 2vh; }
+    #main .footer {
+      margin-top: auto; width: 100%;
+      font-size: 13px; line-height: 1.6;
+    }
+
+    /* loading */
+    #loading .frame { justify-content: center; }
+    #loading .lettering { width: 100%; transform: none; }
+
+    /* result */
+    #result .glow { position: absolute; left: 5%; top: 15%; width: 90%; height: 60%; }
+    #result .stage { position: relative; left: auto; top: auto; flex: 1; width: 100%; min-height: 0; height: auto; }
+    #result .btns { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+
+    /* gallery */
+    #gallery {
+      width: 100%; flex: 1; min-height: 0; align-content: center;
+      grid-template-columns: repeat(4, 1fr); grid-auto-rows: auto;
+      gap: 6px;
+    }
+    #gallery .card { aspect-ratio: 225.77 / 300.59; }
+    #gallery-screen .btns { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 1. 메인 -->
+<section class="screen active" id="main">
+  <div class="grad-top"></div>
+  <div class="grad-bottom"></div>
+  <div class="frame">
+    <img class="title" src="image/title.png" alt="이상하고 아름다운 어중간">
+    <p class="guide">1. 사진을 찍거나 앨범의 이미지를 업로드하세요<br>2. 자신만의 도깨비를 만나보세요!<br>3. 탄생한 도깨비를 저장해 자랑해보세요</p>
+    <div class="btns">
+      <button class="btn js-make" style="--x:372; --y:573"><img src="image/btn_make.svg" alt="도깨비 만들기"></button>
+      <button class="btn js-see"  style="--x:798; --y:573"><img src="image/btn_see.svg" alt="도깨비 구경하기"></button>
+    </div>
+    <div class="footer">
+      <span>양혜규 특별전</span>
+      <span>이상하고 아름다운 어중간</span>
+      <span>2026</span>
+    </div>
+  </div>
+</section>
+
+<!-- 2. 로딩 -->
+<section class="screen" id="loading">
+  <div class="grad-top"></div>
+  <div class="grad-bottom"></div>
+  <div class="frame">
+    <div class="lettering">
+      <img src="image/loading.svg" alt="이상하고 아름다운 도깨비가 태어나는 중...">
+    </div>
+  </div>
+</section>
+
+<!-- 3. 결과: 콜라주 캔버스 -->
+<section class="screen" id="result">
+  <div class="grad-top"></div>
+  <div class="grad-bottom"></div>
+  <div class="frame">
+    <div class="glow"></div>
+    <img class="mini-title js-home" src="image/title.png" alt="처음으로">
+    <div class="stage"><canvas id="collage"></canvas></div>
+    <div class="btns">
+      <button class="btn js-save" style="--x:71;   --y:661"><img src="image/btn_save.svg" alt="이미지 저장"></button>
+      <button class="btn js-make" style="--x:1098; --y:517"><img src="image/btn_make.svg" alt="다시 만들기"></button>
+      <button class="btn js-see"  style="--x:1098; --y:661"><img src="image/btn_see.svg" alt="도깨비 구경하기"></button>
+    </div>
+  </div>
+</section>
+
+<!-- 4. 구경하기 -->
+<section class="screen" id="gallery-screen">
+  <div class="grad-top"></div>
+  <div class="grad-bottom"></div>
+  <div class="frame">
+    <img class="mini-title js-home" src="image/title.png" alt="처음으로">
+    <div id="gallery"></div>
+    <div class="btns">
+      <button class="btn js-home" style="--x:1098; --y:661">
+        <!-- image/btn_home.svg 가 없으면 글자로 대신 표시 -->
+        <img src="image/btn_home.svg" alt="처음으로" onerror="this.outerHTML='<span class=&quot;btn-text&quot;>처음으로</span>'">
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- 사진 선택 (모바일에서는 카메라 촬영도 선택 가능) -->
+<input type="file" id="fileInput" accept="image/*">
+
+<script>
+  const fileInput = document.getElementById('fileInput');
+  const canvas = document.getElementById('collage');
+  const ctx = canvas.getContext('2d');
+  const gallery = document.getElementById('gallery');
+
+  /* ── 상태 ── */
+  const state = {
+    screen: 'main',
+    cutout: null,       // 배경 제거된 사용자 오브제 (투명 PNG dataURL)
+    collage: null,      // 생성된 콜라주 { pieces, bounds }
+  };
+
+  /* ── 화면 전환 ── */
+  function show(id) {
+    state.screen = id;
+    document.querySelectorAll('.screen').forEach(el => el.classList.toggle('active', el.id === id));
+    if (id === 'result') { requestAnimationFrame(renderResult); startAnim(); }
+    else stopAnim();
+    if (id === 'gallery-screen') renderGallery();
+  }
+
+  /* ════════════════ 졸라맨 콜라주 ════════════════ */
+
+  const rand = (a, b) => a + Math.random() * (b - a);
+  const randInt = (a, b) => Math.floor(rand(a, b + 1));
+  const shuffle = arr => arr.map(v => [Math.random(), v]).sort((a, b) => a[0] - b[0]).map(v => v[1]);
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const deg = d => d * Math.PI / 180;
+
+  /* ── 졸라맨 구조 ──
+     조각을 고정 좌표에 두지 않고, 몸통 조각의 실제 크기에 맞춰 관절을 이어 붙입니다.
+     → 머리는 몸통 위에, 팔은 어깨에서, 다리는 엉덩이에서 뻗어 나가서 조각끼리 항상 연결됨.
+
+              ( 머리 )            ← 세로로 길게
+                 |
+     팔 ━━━ [ 몸통 1 ] ━━━ 팔     ← 팔은 가로로 길게 / 몸통 1 = 사용자 오브제 (가장 큼)
+             [ 몸통 2 ]           ← 있을 때만
+               /   \
+              /     \             ← 다리는 세로로 길게
+  */
+  const FIGURE = {
+    neck:    { x: 500, y: 300 },   // 몸통이 시작되는 지점 (가상 좌표계)
+    armDeg:  15,                   // 팔이 아래로 처진 각도 (수평 기준) — 팔은 가로로 길게
+    legDeg:  70,                 // 다리가 벌어진 각도 (수평 기준) — 다리는 세로로 길게
+    overlap: 0.15,                 // 이어지는 조각끼리 겹치는 비율
+  };
+
+  /* 자리별 기본 크기 (조각의 긴 변, 가상 좌표 단위) */
+  const SLOT_SIZE = { torso1: 560, torso2: 360, head: 320, lArm: 400, rArm: 400, lLeg: 440, rLeg: 440 };
+
+  const MAX_PIECES = 10;   // 화면에 올라가는 조각 수 상한
+
+  /* ── 보조 에셋: basic_image 폴더 ──
+     1) 서버가 폴더 목록을 보여주면(Live Server, python http.server 등) 파일 이름과 상관없이 전부 사용
+     2) 목록을 못 읽으면 1.png ~ 30.png 이름을 차례로 찾아봄 */
+  const BASIC_DIR = 'basic_image/';
+  const IMG_EXT = /\.(png|webp|gif|svg|jpe?g)$/i;
+
+  async function listBasicImages() {
+    try {
+      const res = await fetch(BASIC_DIR, { cache: 'no-store' });
+      if (res.ok) {
+        const doc = new DOMParser().parseFromString(await res.text(), 'text/html');
+        const base = new URL(BASIC_DIR, location.href);
+        const urls = [...doc.querySelectorAll('a[href]')]
+          .map(a => a.getAttribute('href'))
+          .filter(h => IMG_EXT.test(h.split('?')[0]))
+          .map(h => new URL(h, base).href);
+        if (urls.length) return [...new Set(urls)];
+      }
+    } catch (e) {}
+    return Array.from({ length: 30 }, (_, i) => `${BASIC_DIR}${i + 1}.png`);
+  }
+
+  async function loadBasicImages() {
+    const urls = await listBasicImages();
+    const imgs = await Promise.all(urls.map(u => loadImage(u).catch(() => null)));
+    return imgs.filter(Boolean).map(trimTransparent);
+  }
+
+  /* 투명한 여백을 잘라내 실제 오브제 크기만 남김 (조각끼리 딱 붙도록) */
+  function trimTransparent(img) {
+    try {
+      const w = img.naturalWidth || img.width, h = img.naturalHeight || img.height;
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      const g = c.getContext('2d', { willReadFrequently: true });
+      g.drawImage(img, 0, 0);
+      const a = g.getImageData(0, 0, w, h).data;
+      let x0 = w, y0 = h, x1 = -1, y1 = -1;
+      for (let y = 0; y < h; y++) {
+        for (let x = 0; x < w; x++) {
+          if (a[(y * w + x) * 4 + 3] > 10) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+        }
+      }
+      if (x1 < 0) return keepSource(img, img, null);         // 완전히 투명하면 그대로
+      const out = document.createElement('canvas');
+      out.width = x1 - x0 + 1; out.height = y1 - y0 + 1;
+      out.getContext('2d').drawImage(c, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+      return keepSource(out, img, [x0, y0, out.width, out.height]);
+    } catch (e) {
+      return keepSource(img, img, null);   // file:// 로 열어 픽셀을 읽을 수 없으면 자르지 않고 사용
+    }
+  }
+  /* 구경하기에서 다시 그릴 수 있도록 원본 주소와 잘라낸 영역을 기억 */
+  function keepSource(target, img, crop) {
+    target.srcUrl = img.src || null;
+    target.crop = crop;
+    return target;
+  }
+
+  /* 조각 크기 정하기: 긴 변 = long */
+  function sizePiece(img, long) {
+    const r = long / Math.max(img.width, img.height);
+    return { w: img.width * r, h: img.height * r };
+  }
+  /* 회전된 조각의 가로·세로 폭 */
+  function rotatedBox(p) {
+    const c = Math.abs(Math.cos(p.rot)), s = Math.abs(Math.sin(p.rot));
+    return { bw: p.w * c + p.h * s, bh: p.w * s + p.h * c };
+  }
+
+  /* 회전된 조각들을 모두 감싸는 영역 (캔버스에 꽉 차게 맞추는 데 사용) */
+  function getBounds(pieces) {
+    let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+    for (const p of pieces) {
+      const { bw, bh } = rotatedBox(p);
+      x0 = Math.min(x0, p.x - bw / 2); x1 = Math.max(x1, p.x + bw / 2);
+      y0 = Math.min(y0, p.y - bh / 2); y1 = Math.max(y1, p.y + bh / 2);
+    }
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
+  /* 콜라주 생성: 사용자 오브제 1~2개 + 보조 에셋 3~5개 (최대 10개) */
+  async function buildCollage(userSrc) {
+    const userImg = trimTransparent(userSrc);
+    const basics = await loadBasicImages();
+    if (!basics.length) console.warn('basic_image 폴더에 이미지가 없어 사용자 오브제만으로 콜라주를 만듭니다.');
+    const pool = shuffle(basics.length ? basics : [userImg]);
+
+    const userCount = randInt(1, 2);
+    const basicCount = clamp(randInt(6, 8) - userCount, 3, 5);
+
+    /* 자리 정하기: 사용자 오브제는 몸통 1, 두 번째는 머리 또는 몸통 2
+       보조 에셋은 머리 → 팔·다리 → 몸통 2 순서로 채움 (졸라맨 실루엣 우선) */
+    const userSlots = ['torso1', ...shuffle(['head', 'torso2'])].slice(0, userCount);
+    const basicSlots = ['head', ...shuffle(['lArm', 'rArm', 'lLeg', 'rLeg']), 'torso2']
+      .filter(id => !userSlots.includes(id))
+      .slice(0, Math.min(basicCount, MAX_PIECES - userCount));
+
+    /* 크기: 사용자 오브제는 크게(0.95~1.1), 보조 에셋은 0.6~1.1 이되 항상 사용자 오브제보다 작게 */
+    const spec = {};
+    const u1 = sizePiece(userImg, SLOT_SIZE.torso1 * rand(0.95, 1.1));
+    spec.torso1 = { img: userImg, isUser: true, ...u1 };
+    let minUserLong = Math.max(u1.w, u1.h), minUserArea = u1.w * u1.h;
+    if (userSlots[1]) {
+      const u2 = sizePiece(userImg, minUserLong * rand(0.7, 0.8));
+      spec[userSlots[1]] = { img: userImg, isUser: true, ...u2 };
+      minUserLong = Math.max(u2.w, u2.h); minUserArea = u2.w * u2.h;
+    }
+    basicSlots.forEach((id, i) => {
+      const img = pool[i % pool.length];
+      let s = sizePiece(img, Math.min(SLOT_SIZE[id] * rand(0.6, 1.1), minUserLong * 0.85));
+      const areaCap = minUserArea * 0.6;
+      if (s.w * s.h > areaCap) { const k = Math.sqrt(areaCap / (s.w * s.h)); s = { w: s.w * k, h: s.h * k }; }
+      spec[id] = { img, isUser: false, ...s };
+    });
+
+    /* 배치: 몸통 → 머리 → 팔 → 다리 순서로 이어 붙이기 */
+    const pieces = [];
+    const add = (id, p, z) => { const piece = { ...spec[id], slot: id, ...p, z }; pieces.push(piece); return piece; };
+    const ov = FIGURE.overlap;
+
+    // 몸통 1 (목에서 아래로)
+    const t1 = add('torso1', { rot: deg(rand(-12, 12)), x: FIGURE.neck.x, y: 0 }, 5);
+    const b1 = rotatedBox(t1);
+    t1.y = FIGURE.neck.y + b1.bh / 2;
+    let bodyBottom = FIGURE.neck.y + b1.bh;
+
+    // 몸통 2 (몸통 1 아래에 겹쳐서)
+    if (spec.torso2) {
+      const t2 = add('torso2', { rot: deg(rand(-20, 20)), x: FIGURE.neck.x + rand(-30, 30), y: 0 }, 4);
+      const b2 = rotatedBox(t2);
+      t2.y = bodyBottom - b2.bh * ov + b2.bh / 2;
+      bodyBottom = t2.y + b2.bh / 2;
+    }
+
+    // 머리 (몸통 1 위에 얹기, 세로로 길게 세움)
+    if (spec.head) {
+      const { w, h } = spec.head;
+      const upright = w > h ? 90 : 0;
+      const hd = add('head', { rot: deg(upright + rand(-20, 20)), x: FIGURE.neck.x + rand(-20, 20), y: 0 }, 6);
+      const bh = rotatedBox(hd).bh;
+      hd.y = FIGURE.neck.y - bh / 2 + bh * ov;
+    }
+
+    // 팔·다리: 관절에서 바깥쪽으로 뻗도록, 조각의 긴 축을 팔다리 방향에 맞춤
+    //   팔 = 거의 수평(가로로 길게), 다리 = 거의 수직(세로로 길게)
+    const shoulderY = FIGURE.neck.y + b1.bh * 0.22;
+    const hipY = bodyBottom - (bodyBottom - FIGURE.neck.y) * 0.08;
+    const LIMBS = {
+      lArm: { jx: FIGURE.neck.x - b1.bw * 0.3,  jy: shoulderY, ang: 180 - FIGURE.armDeg, z: 2 },
+      rArm: { jx: FIGURE.neck.x + b1.bw * 0.3,  jy: shoulderY, ang: FIGURE.armDeg,       z: 2 },
+      lLeg: { jx: FIGURE.neck.x - b1.bw * 0.22, jy: hipY,      ang: 180 - FIGURE.legDeg, z: 1 },
+      rLeg: { jx: FIGURE.neck.x + b1.bw * 0.22, jy: hipY,      ang: FIGURE.legDeg,       z: 1 },
+    };
+    for (const [id, L] of Object.entries(LIMBS)) {
+      if (!spec[id]) continue;
+      const { w, h } = spec[id];
+      const axis = L.ang + rand(-20, 20);                 // 팔다리 방향 + 랜덤 ±20°
+      const reach = Math.max(w, h) / 2 * (1 - ov);        // 관절 쪽 끝이 몸통에 살짝 묻히도록
+      add(id, {
+        rot: deg(axis - (h > w ? 90 : 0)),                // 긴 축을 팔다리 방향으로 눕힘
+        x: L.jx + Math.cos(deg(axis)) * reach,
+        y: L.jy + Math.sin(deg(axis)) * reach,
+      }, L.z);
+    }
+
+    pieces.sort((a, b) => a.z - b.z);
+    return { pieces, bounds: getBounds(pieces) };
+  }
+
+  /* 콜라주를 (w × h) 영역에 가운데 맞춰 그리기 — 배경은 투명 */
+  /* fx(선택): 움직임 정보 { ox, oy, tilt, piece(p, i, sx, sy) → { dx, dy, dr, ds } }
+     ox·oy·dx·dy 는 화면 픽셀 단위, tilt·dr 은 라디안 */
+  function drawCollage(g, w, h, collage, pad = 0.04, fx = null) {
+    g.clearRect(0, 0, w, h);
+    if (!collage) return;
+    const b = collage.bounds;
+    const s = Math.min(w * (1 - pad * 2) / b.w, h * (1 - pad * 2) / b.h);
+    const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
+    const ox = fx ? fx.ox : 0, oy = fx ? fx.oy : 0;
+    g.save();
+    g.translate(w / 2 + ox, h / 2 + oy);
+    if (fx) g.rotate(fx.tilt);
+    g.scale(s, s);
+    g.translate(-cx, -cy);
+    collage.pieces.forEach((p, i) => {
+      const d = fx ? fx.piece(p, i, w / 2 + ox + (p.x - cx) * s, h / 2 + oy + (p.y - cy) * s) : null;
+      g.save();
+      g.translate(p.x + (d ? d.dx / s : 0), p.y + (d ? d.dy / s : 0));
+      g.rotate(p.rot + (d ? d.dr : 0));
+      if (d) g.scale(d.ds, d.ds);
+      if (p.crop) g.drawImage(p.img, ...p.crop, -p.w / 2, -p.h / 2, p.w, p.h);
+      else g.drawImage(p.img, -p.w / 2, -p.h / 2, p.w, p.h);
+      g.restore();
+    });
+    g.restore();
+  }
+
+  /* 결과 화면 캔버스: 화면 크기에 맞춰 선명하게 */
+  const LIVE_PAD = 0.1;   // 움직여도 캔버스 밖으로 잘리지 않도록 여백을 넉넉히
+  function renderResult() {
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (!w || !h) return;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCollage(ctx, w, h, state.collage, LIVE_PAD, anim.running ? anim.fx : null);
+  }
+  new ResizeObserver(() => { if (state.screen === 'result') renderResult(); }).observe(canvas);
+
+  /* ════════════════ 4단계: 마우스·터치 인터랙션 ════════════════
+     - 콜라주 전체가 포인터를 늦게(Ease-follow) 따라오며, 움직이는 방향으로 살랑 기울어짐
+     - 포인터가 가까운 조각일수록 둠칫둠칫 흔들림
+     - 포인터가 없을 때도 은은하게 숨 쉬듯 흔들림 */
+  const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const MOTION = REDUCED ? 0.3 : 1;   // '동작 줄이기' 설정이면 움직임을 약하게
+
+  const anim = {
+    running: false, raf: 0, last: 0, t: 0,
+    pointer: null,          // 캔버스 기준 포인터 좌표 (없으면 null)
+    ox: 0, oy: 0, prevOx: 0, tilt: 0,
+    near: [],               // 조각별 '포인터와 가까운 정도' (0~1, 부드럽게 변함)
+    fx: null,
+  };
+  /* dt(초)에 상관없이 같은 속도로 따라가도록 보정한 보간 비율 */
+  const ease = (rate, dt) => 1 - Math.pow(1 - rate, dt * 60);
+
+  anim.fx = {
+    get ox() { return anim.ox; },
+    get oy() { return anim.oy; },
+    get tilt() { return anim.tilt; },
+    piece(p, i, sx, sy) {
+      const t = anim.t, ph = i * 1.7 + 0.3;
+      const n = anim.near[i] || 0;
+      return {
+        dx: n * Math.sin(t * 11 + ph * 2) * 3 * MOTION,                               // 좌우 떨림
+        dy: (-n * Math.abs(Math.sin(t * 7 + ph)) * 9) * MOTION,                     // 둠칫 (위로 튀어오름)
+        dr: deg(Math.sin(t * 1.6 + ph) * 1.2 + n * Math.sin(t * 13 + ph) * 6) * MOTION, // 은은한 흔들림 + 가까울 때 떨림
+        ds: 1 + n * 0.05 * Math.sin(t * 9 + ph) * MOTION,                           // 살짝 커졌다 작아짐
+      };
+    },
+  };
+
+  function updateNear(w, h, dt) {
+    const c = state.collage;
+    if (!c) return;
+    const b = c.bounds;
+    const s = Math.min(w * (1 - LIVE_PAD * 2) / b.w, h * (1 - LIVE_PAD * 2) / b.h);
+    const reach = Math.min(w, h) * 0.35;
+    c.pieces.forEach((p, i) => {
+      let target = 0;
+      if (anim.pointer) {
+        const sx = w / 2 + anim.ox + (p.x - b.x - b.w / 2) * s;
+        const sy = h / 2 + anim.oy + (p.y - b.y - b.h / 2) * s;
+        target = clamp(1 - Math.hypot(sx - anim.pointer.x, sy - anim.pointer.y) / reach, 0, 1);
+      }
+      const cur = anim.near[i] || 0;
+      anim.near[i] = cur + (target - cur) * ease(0.12, dt);
+    });
+  }
+
+  function tick(now) {
+    if (!anim.running) return;
+    const dt = Math.min(0.05, (now - anim.last) / 1000 || 0.016);
+    anim.last = now;
+    anim.t += dt;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    if (w && h) {
+      /* 따라갈 목표 위치: 포인터 쪽으로 일부만 이동 (화면 밖으로 나가지 않게 제한) */
+      let tx, ty;
+      if (anim.pointer) {
+        tx = clamp((anim.pointer.x - w / 2) * 0.3, -w * 0.09, w * 0.09);
+        ty = clamp((anim.pointer.y - h / 2) * 0.3, -h * 0.07, h * 0.07);
+      } else {
+        tx = Math.sin(anim.t * 0.7) * w * 0.012;      // 포인터가 없을 때는 제자리에서 살랑
+        ty = Math.sin(anim.t * 1.1) * h * 0.008;
+      }
+      anim.ox += (tx * MOTION - anim.ox) * ease(0.05, dt);
+      anim.oy += (ty * MOTION - anim.oy) * ease(0.05, dt);
+
+      /* 움직이는 속도만큼 반대쪽으로 살짝 기울어짐 (매달린 인형처럼) */
+      const vx = (anim.ox - anim.prevOx) / dt;
+      anim.prevOx = anim.ox;
+      const tiltTarget = clamp(-vx * 0.0009, -deg(9), deg(9)) + deg(Math.sin(anim.t * 0.9) * 1.2) * MOTION;
+      anim.tilt += (tiltTarget - anim.tilt) * ease(0.08, dt);
+
+      updateNear(w, h, dt);
+      ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
+      drawCollage(ctx, w, h, state.collage, LIVE_PAD, anim.fx);
+    }
+    anim.raf = requestAnimationFrame(tick);
+  }
+
+  function startAnim() {
+    if (anim.running) return;
+    anim.running = true;
+    anim.last = performance.now();
+    anim.near = [];
+    anim.raf = requestAnimationFrame(tick);
+  }
+  function stopAnim() {
+    anim.running = false;
+    cancelAnimationFrame(anim.raf);
+    anim.pointer = null;
+  }
+
+  /* 포인터 위치 추적: 결과 화면 어디에서 움직여도 콜라주가 반응 */
+  const resultScreen = document.getElementById('result');
+  function trackPointer(e) {
+    const r = canvas.getBoundingClientRect();
+    anim.pointer = { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+  resultScreen.addEventListener('pointermove', trackPointer);
+  resultScreen.addEventListener('pointerdown', trackPointer);
+  /* 손가락을 떼거나 마우스가 화면 밖으로 나가면 제자리로 돌아감 */
+  resultScreen.addEventListener('pointerup', e => { if (e.pointerType !== 'mouse') anim.pointer = null; });
+  resultScreen.addEventListener('pointercancel', () => { anim.pointer = null; });
+  resultScreen.addEventListener('pointerleave', () => { anim.pointer = null; });
+
+  /* ── 구경하기 저장용 "콜라주 설계도" ──
+     완성 이미지를 PNG로 꺼내는 대신 조각 배치 정보 + 누끼 이미지를 저장했다가 다시 그림.
+     (파일을 더블클릭해 열어도 브라우저 보안에 막히지 않고 저장됨) */
+  function shrinkToDataURL(img, max = 600) {
+    const r = Math.min(1, max / Math.max(img.width, img.height));
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(img.width * r));
+    c.height = Math.max(1, Math.round(img.height * r));
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return c.toDataURL('image/png');
+  }
+  function collageRecipe(collage) {
+    let user = null;
+    const pieces = collage.pieces.map(p => {
+      const base = { x: p.x, y: p.y, w: p.w, h: p.h, rot: p.rot };
+      if (p.isUser) {
+        if (!user) user = shrinkToDataURL(p.img);
+        return { ...base, user: true };
+      }
+      /* 보조 에셋은 basic_image 안의 파일 이름과 잘라낸 영역만 기억 */
+      const file = decodeURIComponent((p.img.srcUrl || '').split('/').pop());
+      return { ...base, file, crop: p.img.crop };
+    });
+    return { user, pieces, bounds: collage.bounds };
+  }
+  async function recipeToCollage(r) {
+    const userImg = r.user ? await loadImage(r.user) : null;
+    const pieces = await Promise.all(r.pieces.map(async p => {
+      const img = p.user ? userImg : await loadImage(BASIC_DIR + encodeURIComponent(p.file)).catch(() => null);
+      return img && { ...p, img, crop: p.user ? null : p.crop };
+    }));
+    return { pieces: pieces.filter(Boolean), bounds: r.bounds };
+  }
+
+  /* 결과 화면을 바로 열었을 때(#result)를 위한 예시 콜라주 */
+  loadImage('image/bulb.png')
+    .then(buildCollage)
+    .then(col => { if (!state.collage) { state.collage = col; renderResult(); } })
+    .catch(e => console.warn('예시 콜라주를 만들지 못했습니다:', e));
+
+  function loadImage(src) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = src;
+    });
+  }
+
+  /* 업로드 이미지를 최대 1024px로 줄여 Blob으로 (누끼 속도·메모리 절약) */
+  async function shrinkImage(file, max = 1024) {
+    const url = URL.createObjectURL(file);
+    try {
+      const img = await loadImage(url);
+      const r = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * r);
+      c.height = Math.round(img.height * r);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      return await new Promise(res => c.toBlob(res, 'image/jpeg', 0.92));
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  function blobToDataURL(blob) {
+    return new Promise((resolve, reject) => {
+      const fr = new FileReader();
+      fr.onload = () => resolve(fr.result);
+      fr.onerror = reject;
+      fr.readAsDataURL(blob);
+    });
+  }
+
+  /* ── 배경 제거 (누끼): @imgly/background-removal, 브라우저 안에서 무료로 동작 ──
+     처음 한 번 AI 모델(수십 MB)을 내려받고, 이후에는 브라우저 캐시를 사용합니다. */
+  const BG_LIB_URL = 'https://cdn.jsdelivr.net/npm/@imgly/background-removal@1.7.0/+esm';
+  const BG_CONFIG = {
+    model: 'isnet_fp16',
+    output: { format: 'image/png', type: 'foreground' },
+  };
+  let bgLib = null;
+  function loadBgLib() {
+    if (!bgLib) bgLib = import(BG_LIB_URL).catch(e => { bgLib = null; throw e; });
+    return bgLib;
+  }
+  /* [도깨비 만들기]를 누르는 순간 모델을 미리 받아 두어 대기 시간을 줄임 */
+  function preloadModel() {
+    loadBgLib().then(lib => lib.preload(BG_CONFIG)).catch(() => {});
+  }
+  async function removeBg(blob) {
+    const lib = await loadBgLib();
+    return lib.removeBackground(blob, BG_CONFIG);   // 투명 배경 PNG Blob
+  }
+
+  function withTimeout(promise, ms) {
+    return Promise.race([
+      promise,
+      new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), ms)),
+    ]);
+  }
+
+  /* ── 구경하기: 만든 도깨비를 이 브라우저에 최대 8개 보관 ── */
+  /* 콜라주 전용 저장소 (예전 버전이 저장한 누끼 이미지는 지우고 쓰지 않음) */
+  const STORE_KEY = 'eojunggan_collage';
+  try { localStorage.removeItem('eojunggan_dokkaebi'); } catch (e) {}
+  function loadSaved() {
+    try { return JSON.parse(localStorage.getItem(STORE_KEY)) || []; } catch (e) { return []; }
+  }
+  function addSaved(item) {
+    const list = [item, ...loadSaved()].slice(0, 8);
+    /* 저장 공간이 부족하면 오래된 것부터 빼면서 다시 시도 */
+    while (list.length) {
+      try { localStorage.setItem(STORE_KEY, JSON.stringify(list)); return; } catch (e) { list.pop(); }
+    }
+  }
+  function renderGallery() {
+    const saved = loadSaved();
+    gallery.innerHTML = '';
+    for (let i = 0; i < 8; i++) {
+      const card = document.createElement('div');
+      card.className = 'card';
+      if (saved[i]) drawCard(card, saved[i]);
+      gallery.appendChild(card);
+    }
+  }
+  /* 카드 안에 저장된 콜라주를 다시 그리기 */
+  async function drawCard(card, item) {
+    if (typeof item === 'string') {          // 이미지(dataURL)로 저장된 항목
+      const img = document.createElement('img');
+      img.src = item;
+      card.appendChild(img);
+      return;
+    }
+    const c = document.createElement('canvas');
+    c.style.width = '100%'; c.style.height = '100%'; c.style.display = 'block';
+    card.appendChild(c);
+    const collage = await recipeToCollage(item).catch(() => null);
+    if (!collage || !collage.pieces.length) return;
+    const dpr = window.devicePixelRatio || 1;
+    const w = card.clientWidth || 226, h = card.clientHeight || 300;
+    c.width = Math.round(w * dpr); c.height = Math.round(h * dpr);
+    const g = c.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    drawCollage(g, w, h, collage, 0.06);
+  }
+
+  /* ── 도깨비 만들기: 사진 선택 → 로딩(누끼 제거) → 콜라주 → 결과 ── */
+  const MAX_FILE_MB = 20;
+  const FAIL_MSG = '다른 이미지로 다시 시도해 주세요';
+
+  fileInput.addEventListener('change', async () => {
+    const file = fileInput.files[0];
+    fileInput.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/') || file.size > MAX_FILE_MB * 1024 * 1024) {
+      alert(FAIL_MSG + `\n(${MAX_FILE_MB}MB 이하의 이미지 파일만 올릴 수 있어요)`);
+      return;
+    }
+    show('loading');
+    try {
+      const small = await shrinkImage(file);
+      const cutout = await withTimeout(removeBg(small), 120000);
+      state.cutout = await blobToDataURL(cutout);     // 누끼 결과 (투명 PNG dataURL)
+      state.collage = await buildCollage(await loadImage(state.cutout));
+      show('result');
+      /* 완성된 콜라주를 구경하기에 자동으로 쌓기 */
+      try { addSaved(collageRecipe(state.collage)); } catch (e) { console.warn('콜라주를 구경하기에 저장하지 못했습니다:', e); }
+    } catch (e) {
+      console.error('도깨비 만들기 실패:', e);
+      show('main');
+      setTimeout(() => alert(FAIL_MSG), 50);
+    }
+  });
+
+  /* ── 버튼 연결 ── */
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.addEventListener('click', fn));
+  on('.js-make', () => { preloadModel(); fileInput.click(); });
+  on('.js-see',  () => show('gallery-screen'));
+  on('.js-home', () => show('main'));
+  function downloadPNG(href, name) {
+    const a = document.createElement('a');
+    a.href = href;
+    a.download = name;
+    a.click();
+  }
+  /* 저장: 움직임 없는 정지 상태의 콜라주를 고화질 투명 PNG로 */
+  on('.js-save', () => {
+    try {
+      const c = document.createElement('canvas');
+      c.width = 1500; c.height = 2000;
+      drawCollage(c.getContext('2d'), c.width, c.height, state.collage, 0.05);
+      downloadPNG(c.toDataURL('image/png'), 'strange_and_dear_somewhere_near.png');
+    } catch (e) {
+      alert('이미지를 저장하지 못했어요. 사이트를 로컬 서버(Live Server 등)로 열어 주세요.');
+    }
+  });
+
+  /* 개발용: 주소 뒤에 #loading, #result, #gallery-screen 을 붙이면 해당 화면으로 바로 이동 */
+  if (location.hash) show(location.hash.slice(1));
+</script>
+</body>
+</html>
