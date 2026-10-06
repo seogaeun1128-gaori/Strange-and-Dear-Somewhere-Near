@@ -149,6 +149,36 @@
 
   #fileInput { display: none; }
 
+  /* ── 사진 고르기 / 카메라 창 ── */
+  .modal {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; align-items: center; justify-content: center;
+    padding: 16px;
+    background: rgba(0, 25, 255, 0.35);
+    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+  }
+  .modal.open { display: flex; animation: fadeIn .25s ease; }
+  .modal-box {
+    display: flex; flex-direction: column; align-items: center; gap: clamp(14px, 2.4vw, 24px);
+    max-width: 100%;
+  }
+  .modal-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: clamp(12px, 2vw, 28px); }
+  .modal .btn {
+    position: relative; left: auto; top: auto;
+    width: clamp(150px, 22vw, 272px); height: clamp(60px, 8.6vw, 106px);
+  }
+  .modal .btn-text { font-size: clamp(16px, 2vw, 26px); }
+  .modal-close { background: none; border: none; padding: 8px; cursor: pointer; }
+  .modal-close img { height: clamp(16px, 1.8vw, 22px); width: auto; }   /* 흰색 레터링 (파란 배경 위) */
+  .modal-close:active { transform: scale(0.94); }
+  #cameraVideo {
+    display: block;
+    width: min(88vw, calc(70vh * 4 / 3)); aspect-ratio: 4 / 3;
+    object-fit: cover; background: #000;
+    border: 1px solid var(--blue);
+  }
+  #cameraVideo.mirror { transform: scaleX(-1); }   /* 셀카 카메라는 거울처럼 보여줌 (찍힌 사진은 원래 방향) */
+
   /* ───────── 모바일 / 세로 태블릿: 화면에 꽉 차는 세로 레이아웃 ───────── */
   @media (max-width: 768px), (orientation: portrait) and (max-width: 1024px) {
     .frame {
@@ -261,6 +291,28 @@
 
 <!-- 사진 선택 (모바일에서는 카메라 촬영도 선택 가능) -->
 <input type="file" id="fileInput" accept="image/*">
+
+<!-- 사진 올리기 / 카메라로 찍기 고르기 -->
+<div class="modal" id="pickModal" role="dialog" aria-label="사진 고르기">
+  <div class="modal-box">
+    <div class="modal-actions">
+      <button class="btn js-pick-upload"><img src="image/btn_upload.svg" alt="사진 업로드"></button>
+      <button class="btn js-pick-camera"><img src="image/btn_camera.svg" alt="사진 찍기"></button>
+    </div>
+    <button class="modal-close js-modal-close"><img src="image/btn_close.svg" alt="닫기"></button>
+  </div>
+</div>
+
+<!-- 카메라 촬영 -->
+<div class="modal" id="cameraModal" role="dialog" aria-label="카메라로 찍기">
+  <div class="modal-box">
+    <video id="cameraVideo" autoplay playsinline muted></video>
+    <div class="modal-actions">
+      <button class="btn js-camera-shoot"><span class="btn-text">찍기</span></button>
+      <button class="btn js-camera-cancel"><span class="btn-text">취소</span></button>
+    </div>
+  </div>
+</div>
 
 <script>
   const fileInput = document.getElementById('fileInput');
@@ -791,7 +843,7 @@
   const MAX_FILE_MB = 20;
   const FAIL_MSG = '다른 이미지로 다시 시도해 주세요';
 
-  fileInput.addEventListener('change', async () => {
+  fileInput.addEventListener('change', () => {
     const file = fileInput.files[0];
     fileInput.value = '';
     if (!file) return;
@@ -799,9 +851,14 @@
       alert(FAIL_MSG + `\n(${MAX_FILE_MB}MB 이하의 이미지 파일만 올릴 수 있어요)`);
       return;
     }
+    makeDokkaebi(file);
+  });
+
+  /* 사진(파일 또는 카메라로 찍은 이미지) → 로딩(누끼) → 콜라주 → 결과 */
+  async function makeDokkaebi(photo) {
     show('loading');
     try {
-      const small = await shrinkImage(file);
+      const small = await shrinkImage(photo);
       const cutout = await withTimeout(removeBg(small), 120000);
       state.cutout = await blobToDataURL(cutout);     // 누끼 결과 (투명 PNG dataURL)
       state.collage = await buildCollage(await loadImage(state.cutout));
@@ -814,11 +871,77 @@
       show('main');
       setTimeout(() => alert(FAIL_MSG), 50);
     }
-  });
+  }
+
+  /* ── 사진 고르기 창 / 카메라 ── */
+  const pickModal = document.getElementById('pickModal');
+  const cameraModal = document.getElementById('cameraModal');
+  const cameraVideo = document.getElementById('cameraVideo');
+  let cameraStream = null;
+  const canUseCamera = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+
+  function openModal(m) { m.classList.add('open'); }
+  function closeModal(m) { m.classList.remove('open'); }
+
+  async function openCamera() {
+    try {
+      /* 휴대폰은 뒤쪽 카메라를 우선, 노트북은 있는 카메라(전면)를 사용 */
+      cameraStream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } },
+        audio: false,
+      });
+    } catch (e) {
+      console.warn('카메라를 열지 못했습니다:', e);
+      const msg = e.name === 'NotAllowedError'
+        ? '카메라 사용이 허용되지 않았어요.\n브라우저 주소창 왼쪽의 설정에서 카메라를 허용해 주세요.'
+        : '카메라를 찾을 수 없어요. 사진 올리기를 이용해 주세요.';
+      alert(msg);
+      return;
+    }
+    const facing = cameraStream.getVideoTracks()[0].getSettings().facingMode;
+    cameraVideo.classList.toggle('mirror', facing !== 'environment');
+    cameraVideo.srcObject = cameraStream;
+    openModal(cameraModal);
+  }
+
+  function stopCamera() {
+    if (cameraStream) cameraStream.getTracks().forEach(t => t.stop());
+    cameraStream = null;
+    cameraVideo.srcObject = null;
+    closeModal(cameraModal);
+  }
+
+  /* 지금 화면을 사진으로 찍어서 도깨비 만들기로 넘김 */
+  function shootPhoto() {
+    const w = cameraVideo.videoWidth, h = cameraVideo.videoHeight;
+    if (!w || !h) return;   // 아직 카메라 화면이 준비되지 않음
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(cameraVideo, 0, 0, w, h);
+    stopCamera();
+    c.toBlob(blob => { if (blob) makeDokkaebi(blob); }, 'image/jpeg', 0.92);
+  }
 
   /* ── 버튼 연결 ── */
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.addEventListener('click', fn));
-  on('.js-make', () => { preloadModel(); fileInput.click(); });
+  on('.js-make', () => {
+    preloadModel();
+    if (canUseCamera) openModal(pickModal);
+    else fileInput.click();             // 카메라를 쓸 수 없는 환경이면 바로 파일 선택
+  });
+  on('.js-pick-upload', () => { closeModal(pickModal); fileInput.click(); });
+  on('.js-pick-camera', () => { closeModal(pickModal); openCamera(); });
+  on('.js-modal-close', () => closeModal(pickModal));
+  on('.js-camera-shoot', shootPhoto);
+  on('.js-camera-cancel', stopCamera);
+  /* 바깥 영역을 누르거나 Esc 를 누르면 닫기 */
+  pickModal.addEventListener('click', e => { if (e.target === pickModal) closeModal(pickModal); });
+  cameraModal.addEventListener('click', e => { if (e.target === cameraModal) stopCamera(); });
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Escape') return;
+    closeModal(pickModal);
+    if (cameraStream) stopCamera();
+  });
   on('.js-see',  () => show('gallery-screen'));
   on('.js-home', () => show('main'));
   function downloadPNG(href, name) {
