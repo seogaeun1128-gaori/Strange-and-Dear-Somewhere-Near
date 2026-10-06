@@ -852,14 +852,17 @@
       console.warn('드라이브 업로드용 이미지를 만들지 못했습니다 (서버로 열어야 함):', e);
       return;
     }
-    /* text/plain + no-cors: Apps Script 로 보낼 때 브라우저 보안 확인(CORS)을 피하는 방법.
-       응답 내용은 읽을 수 없으므로 결과는 드라이브 폴더에서 확인 */
+    /* text/plain 으로 보내면 브라우저의 사전 확인(preflight) 없이 Apps Script 로 바로 전달됨.
+       결과(ok / denied / not_site_image / error 등)는 개발자 도구(F12) 콘솔에 표시 */
+    console.log('드라이브 업로드 시작…');
     fetch(DRIVE_UPLOAD_URL, {
       method: 'POST',
-      mode: 'no-cors',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
       body: JSON.stringify({ token: DRIVE_UPLOAD_TOKEN, image }),
-    }).catch(e => console.warn('드라이브 업로드 실패:', e));
+    })
+      .then(r => r.text())
+      .then(t => console.log('드라이브 업로드 결과:', t))
+      .catch(e => console.warn('드라이브 업로드 실패:', e));
   }
 
   /* 저장 버튼: 같은 PNG를 기기에 다운로드 */
