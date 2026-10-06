@@ -808,6 +808,7 @@
       show('result');
       /* 완성된 콜라주를 구경하기에 자동으로 쌓기 */
       try { addSaved(collageRecipe(state.collage)); } catch (e) { console.warn('콜라주를 구경하기에 저장하지 못했습니다:', e); }
+      uploadToDrive(state.collage);   // 작가 구글 드라이브로 자동 업로드 (화면 진행을 막지 않음)
     } catch (e) {
       console.error('도깨비 만들기 실패:', e);
       show('main');
@@ -826,13 +827,45 @@
     a.download = name;
     a.click();
   }
-  /* 저장: 움직임 없는 정지 상태의 콜라주를 고화질 투명 PNG로 */
+  /* 움직임 없는 정지 상태의 콜라주를 고화질 투명 PNG(1500×2000)로 */
+  const EXPORT_W = 1500, EXPORT_H = 2000;
+  function exportCollagePNG(collage) {
+    const c = document.createElement('canvas');
+    c.width = EXPORT_W; c.height = EXPORT_H;
+    drawCollage(c.getContext('2d'), c.width, c.height, collage, 0.05);
+    return c.toDataURL('image/png');
+  }
+
+  /* ── 구글 드라이브 자동 업로드 ──
+     콜라주가 완성될 때마다 작가의 Google Apps Script(웹 앱)로 PNG를 보내 드라이브 폴더에 저장.
+     사이트가 직접 만든 콜라주만 보내며, 관람객이 고른 파일은 보내지 않음.
+     DRIVE_UPLOAD_URL 이 비어 있으면 업로드하지 않음. */
+  const DRIVE_UPLOAD_URL = '';   // Apps Script 배포 후 나오는 웹 앱 URL (https://script.google.com/macros/s/.../exec)
+  const DRIVE_UPLOAD_TOKEN = 'h0mkuqeyibw6f379to5sjncz';   // Apps Script 의 TOKEN 과 같아야 함
+
+  function uploadToDrive(collage) {
+    if (!DRIVE_UPLOAD_URL || !collage) return;
+    let image;
+    try {
+      image = exportCollagePNG(collage).split(',')[1];   // base64 부분만
+    } catch (e) {
+      console.warn('드라이브 업로드용 이미지를 만들지 못했습니다 (서버로 열어야 함):', e);
+      return;
+    }
+    /* text/plain + no-cors: Apps Script 로 보낼 때 브라우저 보안 확인(CORS)을 피하는 방법.
+       응답 내용은 읽을 수 없으므로 결과는 드라이브 폴더에서 확인 */
+    fetch(DRIVE_UPLOAD_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify({ token: DRIVE_UPLOAD_TOKEN, image }),
+    }).catch(e => console.warn('드라이브 업로드 실패:', e));
+  }
+
+  /* 저장 버튼: 같은 PNG를 기기에 다운로드 */
   on('.js-save', () => {
     try {
-      const c = document.createElement('canvas');
-      c.width = 1500; c.height = 2000;
-      drawCollage(c.getContext('2d'), c.width, c.height, state.collage, 0.05);
-      downloadPNG(c.toDataURL('image/png'), 'strange_and_dear_somewhere_near.png');
+      downloadPNG(exportCollagePNG(state.collage), 'strange_and_dear_somewhere_near.png');
     } catch (e) {
       alert('이미지를 저장하지 못했어요. 사이트를 로컬 서버(Live Server 등)로 열어 주세요.');
     }
